@@ -1,29 +1,20 @@
 ## snowsync
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/UKHomeOffice/snowsync)](https://goreportcard.com/report/github.com/UKHomeOffice/snowsync)
+These AWS Lambda functions aim to create a bi-directional incident ticketing integration between ACP Service Desk and ServiceNow.
 
-#### A suite of AWS Lambda functions to integrate ACP Service Desk with SNOW.
+The functions are intended to cover a small set of use cases that meet ACP's specific needs, and their reusability in other circumstances is likely to be very limited. As per the accompanying license, the code in this repo is provided "as is" and without warranty of any kind. It can change without notice or any regard for backwards compatibility.
 
-[WIP]
+### ACP to ServiceNow
+When an incident ticket is raised, a webhook is sent from ACP Service Desk to AWS API Gateway which triggers the [outbound function](./pkg/out). The payload is parsed and forward to ServiceNow which replicates the ticket and returns an identifier. This is written to AWS DynamoDB along with the original ticket details. 
 
-* [cmd/api](./cmd/api): Function api starts a SQS session and hands over to package api.
-* [pkg/api](./pkg/api): Package api receives a webhook from JSD, parses its payload and writes it to SQS.
+Further updates to tickets are made using the returned identifier. The database is checked at every transmission to find first a partial and then an exact match using ticket and comment identifiers. 
 
-* [cmd/processor](./cmd/processor): Function processor starts a Lambda session and hands over to package processor.
-* [pkg/processor](./pkg/processor): Package processor receives a SQS event and invokes other functions to handle JSD webhooks.
+If no match is found, ticket creation workflow is triggered. If a partial match is found, comment update workflow is triggered. If an exact match is found, only ticket progress is updated.  
 
-* [cmd/checker](./cmd/checker): Function checker starts a DynamoDB session and hands over to package checker.
-* [pkg/checker](./pkg/checker): Package checker queries DynamoDB and returns a SNOW identifier if one exists.
+### ServiceNow to ACP
+Inversely, a webhook from ServiceNow triggers the [inbound function](./pkg/in) which parses the payload and forwards it to ACP Service Desk. The identifier in response is written to AWS DynamoDB along with the original ticket details. 
 
-* [cmd/caller](./cmd/caller): Function caller hands over to package caller.
-* [pkg/caller](./pkg/caller): Package caller makes a HTTP request to SNOW to create/update a ticket and returns a SNOW identifier.
-* [pkg/client](./pkg/client): Package client is a HTTP client.
+Further updates are made using the ACP provided identifier following the same workflow logic as above.
 
-* [cmd/dbputter](./cmd/dbputter): Function dbputter starts a DynamoDB session and hands over to package dbputter.
-* [pkg/dbputter](./pkg/dbputter): Package dbputter writes a new ticket to DynamoDB.
-
-* [cmd/dbupdater](./cmd/dbupdater): Function dbupdater starts a DynamoDB session and hands over to package dbupdater.
-* [pkg/dbupdater](./pkg/dbupdater): Package dbupdater writes a ticket update to DynamoDB.
-
-* [cmd/receiver](./cmd/receiver): Function receiver starts a DynamoDB session and hands over to package receiver.
-* [pkg/receiver](./pkg/receiver): Package receiver handles a webhook from SNOW, writes its payload to DynamoDB and makes a HTTP request to JSD to update a ticket.
+### Deployment
+Terraform resources (acp-lambda-snowsync) can be found in ACP Gitlab.
