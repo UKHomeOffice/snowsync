@@ -1,20 +1,25 @@
-package outapi
+package out
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/tidwall/gjson"
 )
 
 // Incident is a type of ticket
 type Incident struct {
-	Cluster     string `json:"cluster,omitempty"`
 	Comment     string `json:"comments,omitempty"`
-	Component   string `json:"components,omitempty"`
+	CommentID   string `json:"comment_sysid,omitempty"`
 	Description string `json:"description,omitempty"`
-	Identifier  string `json:"external_identifier,omitempty"`
+	ExtID       string `json:"external_identifier,omitempty"`
+	IntID       string `json:"internal_identifier,omitempty"`
+	Identifier  string
+	MsgID       string `json:"messageid,omitempty"`
 	Priority    string `json:"priority,omitempty"`
+	Resolution  string `json:"resolution_code,omitempty"`
 	Status      string `json:"state,omitempty"`
 	Service     string `json:"business_service,omitempty"`
 	Summary     string `json:"title,omitempty"`
@@ -29,7 +34,6 @@ func NewIncident() *Incident {
 func checkIncidentVars(input string) error {
 
 	vars := []string{
-		"COMPONENT_FIELD",
 		"DESCRIPTION_FIELD",
 		"ISSUE_ID_FIELD",
 		"PRIORITY_FIELD",
@@ -51,7 +55,7 @@ func checkIncidentVars(input string) error {
 }
 
 // parseIncident gets values from inbound incident
-func parseIncident(input string) (*ticketUpdate, error) {
+func parseIncident(input string) (*Incident, error) {
 
 	err := checkIncidentVars(input)
 	if err != nil {
@@ -60,8 +64,8 @@ func parseIncident(input string) (*ticketUpdate, error) {
 
 	i := NewIncident()
 
-	i.Cluster = gjson.Get(input, os.Getenv("CLUSTER_FIELD")).Str
-	i.Component = gjson.Get(input, os.Getenv("COMPONENT_FIELD")).Str
+	i.Comment = gjson.Get(input, os.Getenv("COMMENT_FIELD")).Str
+	i.CommentID = gjson.Get(input, os.Getenv("COMMENT_ID_FIELD")).Str
 	i.Description = gjson.Get(input, os.Getenv("DESCRIPTION_FIELD")).Str
 	i.Identifier = gjson.Get(input, os.Getenv("ISSUE_ID_FIELD")).Str
 	i.Priority = gjson.Get(input, os.Getenv("PRIORITY_FIELD")).Str
@@ -70,14 +74,24 @@ func parseIncident(input string) (*ticketUpdate, error) {
 
 	commentAuthor := gjson.Get(input, os.Getenv("COMMENT_AUTHOR_FIELD")).Str
 	commentBody := gjson.Get(input, os.Getenv("COMMENT_BODY_FIELD")).Str
-	i.Comment = fmt.Sprintf("%v: %v", commentAuthor, commentBody)
+	i.Comment = fmt.Sprintf("%v %v %v", commentAuthor, i.CommentID, commentBody)
 
-	// add / modify SNOW required attributes
+	// make SNOW required modifications
 	i.Service = "AWS ACP"
 
+	if commentAuthor == "ServiceNow" {
+		fmt.Printf("ignoring comment left by ServiceNow")
+		return nil, nil
+	}
+
+	// initialise comment id if nil as it's being used as sort key
+	if i.CommentID == "" {
+		i.CommentID = "0"
+	}
+	// transform status
 	switch i.Status {
 	case "Open":
-		i.Status = "1"
+		i.Status = "2"
 	case "Investigating", "Identified", "Monitoring":
 		i.Status = "22"
 	case "Resolved", "Closed":
@@ -86,8 +100,43 @@ func parseIncident(input string) (*ticketUpdate, error) {
 		return nil, fmt.Errorf("invalid ticket status %v", i.Status)
 	}
 
-	u := ticketUpdate{incident: i}
+	// transform priority
+	switch i.Priority {
+	case "P1 - Production system down":
+		i.Priority = "1"
+	case "P2 - Production system impaired":
+		i.Priority = "2"
+	case "P3 - Non production system impaired":
+		i.Priority = "3"
+	case "P4 - General request":
+		i.Priority = "4"
+	}
+
 	fmt.Printf("parsed incident: %v, status: %v\n", i.Identifier, i.Status)
 
-	return &u, nil
+	return i, nil
+}
+
+// Handle deals with the incoming request
+func Handle(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+
+	inc, err := parseIncident(request.Body)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusBadRequest,
+			Body:       err.Error(),
+		}, nil
+	}
+
+	err = process(inc)
+	if err != nil {
+		return events.APIGatewayProxyResponse{
+			StatusCode: http.StatusInternalServerError,
+			Body:       err.Error(),
+		}, nil
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: http.StatusOK,
+	}, nil
 }
