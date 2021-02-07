@@ -1,4 +1,4 @@
-package inapi
+package outreceiver
 
 import (
 	"encoding/json"
@@ -42,13 +42,13 @@ func (md *mockDynamoDB) PutItem(input *dynamodb.PutItemInput) (*dynamodb.PutItem
 func TestHandle(t *testing.T) {
 
 	tt := []struct {
-		name              string
-		supplierReference string
-		commentAuthor     string
-		commentBody       string
-		err               string
+		name                string
+		external_identifier string
+		commentAuthor       string
+		commentBody         string
+		err                 string
 	}{
-		{name: "happy", supplierReference: "abc-123", commentAuthor: "alice", commentBody: "second comment"},
+		{name: "happy", external_identifier: "abc-123", commentAuthor: "alice", commentBody: "second comment"},
 		{name: "unhappy", err: "JSD call failed with status code: 400"},
 	}
 
@@ -93,11 +93,11 @@ func TestHandle(t *testing.T) {
 			rec := NewReceiver(&mockDynamoDB{})
 
 			msg := struct {
-				SupplierReference string `json:"supplier_reference,omitempty"`
-				Comments          string `json:"comments,omitempty"`
+				ExtID    string `json:"external_identifier,omitempty"`
+				Comments string `json:"comments,omitempty"`
 			}{
-				SupplierReference: tc.supplierReference,
-				Comments:          tc.commentBody,
+				ExtID:    tc.external_identifier,
+				Comments: tc.commentBody,
 			}
 
 			p, err := json.Marshal(msg)
