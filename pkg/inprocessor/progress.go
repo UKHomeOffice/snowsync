@@ -10,7 +10,25 @@ import (
 	"github.com/UKHomeOffice/snowsync/pkg/client"
 )
 
-func (p *Processor) progress(pay Incident) (string, error) {
+type resolution struct {
+	Com comment `json:"comment,omitempty"`
+}
+
+type add struct {
+	Body string `json:"body"`
+}
+
+type comment []struct {
+	Action add `json:"add,omitempty"`
+}
+
+type transition struct {
+	ID string `json:"id,omitempty"`
+}
+
+func (p *Processor) progress(i Incident) (string, error) {
+
+	fmt.Printf("debug msg into progress %+v\n", i)
 
 	user, pass, base, err := getEnv()
 	if err != nil {
@@ -28,28 +46,40 @@ func (p *Processor) progress(pay Incident) (string, error) {
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
 	}
 
-	// only allowing Investtigating and Resolved at MVP stage
+	// only allowing Investigating and Resolved at MVP stage
 	var t string
-	switch pay.Status {
+	switch i.Status {
 	case "":
-		fmt.Printf("ignoring blank status %v", pay.Status)
-		return pay.ExtID, nil
+		fmt.Printf("ignoring blank status %v", i.Status)
+		return i.ExtID, nil
 	case "1":
-		fmt.Printf("ignoring status %v", pay.Status)
-		return pay.ExtID, nil
+		fmt.Printf("ignoring status %v", i.Status)
+		return i.ExtID, nil
 	case "10100":
 		t = "11"
 	case "3":
 		t = "71"
 	default:
-		return "", fmt.Errorf("unexpected ticket status: %v", pay.Status)
+		return "", fmt.Errorf("unexpected ticket status: %v", i.Status)
 	}
 
+	// add final resolution comment
+
+	var rc resolution
+	var co comment
+
+	co = make(comment, 0)
+	co = append(co, struct {
+		Action add "json:\"add,omitempty\""
+	}{add{Body: i.Resolution}})
+	rc.Com = co
+
 	v := Values{
+		Resolution: &rc,
 		Transition: &transition{ID: t},
 	}
 
-	path, err := url.Parse("/rest/api/2/issue/" + pay.ExtID + "/transitions")
+	path, err := url.Parse("/rest/api/2/issue/" + i.ExtID + "/transitions")
 	if err != nil {
 		return "", fmt.Errorf("could not form JSD URL: %v", err)
 	}
@@ -68,5 +98,5 @@ func (p *Processor) progress(pay Incident) (string, error) {
 	}
 	defer res.Body.Close()
 
-	return pay.ExtID, nil
+	return i.ExtID, nil
 }

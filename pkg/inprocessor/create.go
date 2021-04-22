@@ -41,6 +41,7 @@ func transformCreate(p Incident) (map[string]interface{}, error) {
 	v := Values{
 		Priority: &pri,
 		Summary:  p.Summary,
+		Comment:  p.Comment,
 		Description: fmt.Sprintf("Incident %v raised on ServiceNow by %v\n Description: %v.\n Initial comment (%v %v): %v %v",
 			p.IntID, p.Reporter, p.Description, p.CommentID, p.IntCommentID, p.Comment, p.IntComment),
 	}

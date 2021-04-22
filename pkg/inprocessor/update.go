@@ -13,6 +13,8 @@ import (
 
 func addComment(i Incident) error {
 
+	fmt.Printf("debug msg into addComment %+v\n", i)
+
 	user, pass, base, err := getEnv()
 	if err != nil {
 		return fmt.Errorf("environment error: %v", err)

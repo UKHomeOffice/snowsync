@@ -9,19 +9,18 @@ import (
 
 // Incident is a type of ticket
 type Incident struct {
-	Comment        string `json:"comment,omitempty"`
-	CommentID      string `json:"comment_sysid,omitempty"`
-	IntComment     string `json:"internal_comment,omitempty"`
-	IntCommentID   string `json:"internal_comment_sysid,omitempty"`
-	Description    string `json:"description,omitempty"`
-	ExtID          string `json:"external_identifier,omitempty"`
-	IntID          string `json:"internal_identifier,omitempty"`
-	Priority       string `json:"priority,omitempty"`
-	Reporter       string `json:"reporter_name,omitempty"`
-	Resolution     string `json:"resolution,omitempty"`
-	ResolutionCode string `json:"resolution_code,omitempty"`
-	Status         string `json:"status,omitempty"`
-	Summary        string `json:"summary,omitempty"`
+	Comment      string `json:"comment,omitempty"`
+	CommentID    string `json:"comment_sysid,omitempty"`
+	IntComment   string `json:"internal_comment,omitempty"`
+	IntCommentID string `json:"internal_comment_sysid,omitempty"`
+	Description  string `json:"description,omitempty"`
+	ExtID        string `json:"external_identifier,omitempty"`
+	IntID        string `json:"internal_identifier,omitempty"`
+	Priority     string `json:"priority,omitempty"`
+	Reporter     string `json:"reporter_name,omitempty"`
+	Resolution   string `json:"resolution,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Summary      string `json:"summary,omitempty"`
 }
 
 // NewIncident initialises an Incident
@@ -75,6 +74,7 @@ func parseIncident(input string) (*Incident, error) {
 	i.IntID = gjson.Get(input, os.Getenv("INTID_FIELD")).Str
 	i.Priority = gjson.Get(input, os.Getenv("PRIORITY_FIELD")).Str
 	i.Reporter = gjson.Get(input, os.Getenv("REPORTER_FIELD")).Str
+	i.Resolution = gjson.Get(input, os.Getenv("RESOLUTION_FIELD")).Str
 	i.Status = gjson.Get(input, os.Getenv("STATUS_FIELD")).Str
 	i.Summary = gjson.Get(input, os.Getenv("SUMMARY_FIELD")).Str
 

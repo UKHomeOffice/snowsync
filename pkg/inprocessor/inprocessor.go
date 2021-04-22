@@ -41,6 +41,7 @@ type Incident struct {
 	IntID        string `json:"internal_identifier,omitempty"`
 	Priority     string `json:"priority,omitempty"`
 	Reporter     string `json:"reporter_name,omitempty"`
+	Resolution   string `json:"resolution,omitempty"`
 	Status       string `json:"status,omitempty"`
 	Summary      string `json:"summary,omitempty"`
 }
@@ -51,15 +52,12 @@ type Values struct {
 	Description string      `json:"description,omitempty"`
 	Summary     string      `json:"summary,omitempty"`
 	Priority    *priority   `json:"priority,omitempty"`
+	Resolution  *resolution `json:"update,omitempty"`
 	Transition  *transition `json:"transition,omitempty"`
 }
 
 type priority struct {
 	Name string `json:"name,omitempty"`
-}
-
-type transition struct {
-	ID string `json:"id,omitempty"`
 }
 
 func newProcessor(d Dynamo) *Processor {
