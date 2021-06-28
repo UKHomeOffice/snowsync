@@ -15,9 +15,8 @@ type Incident struct {
 	CommentID   string `json:"comment_sysid,omitempty"`
 	Description string `json:"description,omitempty"`
 	ExtID       string `json:"external_identifier,omitempty"`
+	Identifier  string `json:"id,omitempty"`
 	IntID       string `json:"internal_identifier,omitempty"`
-	Identifier  string
-	MsgID       string `json:"messageid,omitempty"`
 	Priority    string `json:"priority,omitempty"`
 	Resolution  string `json:"resolution_code,omitempty"`
 	Status      string `json:"state,omitempty"`
@@ -76,8 +75,9 @@ func parseIncident(input string) (*Incident, error) {
 	commentBody := gjson.Get(input, os.Getenv("COMMENT_BODY_FIELD")).Str
 	i.Comment = fmt.Sprintf("%v %v %v", commentAuthor, i.CommentID, commentBody)
 
-	// make SNOW required modifications
+	// make required modifications
 	i.Service = "AWS ACP"
+	i.ExtID = i.Identifier
 
 	if commentAuthor == "ServiceNow" {
 		fmt.Printf("ignoring comment left by ServiceNow")
@@ -88,6 +88,7 @@ func parseIncident(input string) (*Incident, error) {
 	if i.CommentID == "" {
 		i.CommentID = "0"
 	}
+
 	// transform status
 	switch i.Status {
 	case "Open":
@@ -112,7 +113,7 @@ func parseIncident(input string) (*Incident, error) {
 		i.Priority = "4"
 	}
 
-	fmt.Printf("parsed incident: %v, status: %v\n", i.Identifier, i.Status)
+	fmt.Printf("parsed incident: %+v\n", i)
 
 	return i, nil
 }

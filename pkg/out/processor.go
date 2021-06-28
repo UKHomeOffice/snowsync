@@ -10,12 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-// App implements db and lambda client methods
-type App interface {
+// DB implements db and lambda client methods
+type DB interface {
 	GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error)
 	PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
 	Query(*dynamodb.QueryInput) (*dynamodb.QueryOutput, error)
-	UpdateItem(*dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error)
+	//	UpdateItem(*dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error)
 }
 
 // Dynamo is a DB client
@@ -70,6 +70,9 @@ func process(inc *Incident) error {
 		// add returned internal identifier
 		inc.IntID = iid
 		// create a new DB record
+
+		fmt.Printf("debug - inc from processor: %+v\n", inc)
+
 		err = p.db.writeItem(inc)
 		if err != nil {
 			return fmt.Errorf("could not put DB item: %v", err)

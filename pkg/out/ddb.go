@@ -11,17 +11,17 @@ import (
 
 func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
 
+	// look for just external_id match
 	partial := &dynamodb.QueryInput{
 		TableName:              aws.String(os.Getenv("TABLE_NAME")),
-		KeyConditionExpression: aws.String("external_identifier = :eid"),
+		KeyConditionExpression: aws.String("id = :id"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":eid": {
-				S: aws.String(p.ExtID),
+			":id": {
+				S: aws.String(p.Identifier),
 			},
 		},
 	}
 
-	// look for just external_id match
 	resp, err := d.DynamoDB.Query(partial)
 	if err != nil {
 		return false, "", fmt.Errorf("could not get item: %v", err)
@@ -43,11 +43,12 @@ func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
 
 func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 
+	// look for external_id and comment match
 	exact := &dynamodb.GetItemInput{
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
 		Key: map[string]*dynamodb.AttributeValue{
-			"external_identifier": {
-				S: aws.String(p.ExtID),
+			"id": {
+				S: aws.String(p.Identifier),
 			},
 			"comment_sysid": {
 				S: aws.String(p.CommentID),
@@ -55,7 +56,6 @@ func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 		},
 	}
 
-	// look for external_id and comment match
 	resp, err := d.DynamoDB.GetItem(exact)
 	if err != nil {
 		return false, "", fmt.Errorf("could not get item: %v", err)
@@ -77,21 +77,25 @@ func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 
 func (d *Dynamo) writeItem(p *Incident) error {
 
+	fmt.Printf("debug - p into writer: %+v\n", p)
+
 	item, err := dynamodbattribute.MarshalMap(p)
 	if err != nil {
 		return fmt.Errorf("could not marshal db record: %s", err)
 	}
 
 	input := &dynamodb.PutItemInput{
-		Item:      item,
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
+		Item:      item,
 	}
+
+	fmt.Printf("debug - input in db: %+v\n", input)
 
 	_, err = d.DynamoDB.PutItem(input)
 	if err != nil {
-		return fmt.Errorf("could not put to db: %v", err)
+		return err
 	}
 
-	fmt.Printf("new item added with external identifier: %v", p.ExtID)
+	fmt.Printf("new item added with identifier: %v", p.Identifier)
 	return nil
 }

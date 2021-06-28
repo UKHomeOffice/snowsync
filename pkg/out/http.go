@@ -17,9 +17,9 @@ func create(pay *Incident) (string, error) {
 	// construct payload with SNOW required headers
 	dat := make(map[string]interface{})
 	dat["messageid"] = "HO_SIAM_IN_REST_INC_POST_JSON_ACP_Incident_Create"
-	dat["external_identifier"] = pay.ExtID
+	dat["external_identifier"] = pay.Identifier
 	// avoid repeating external identifier in payload
-	pay.ExtID = ""
+	//pay.Identifier = ""
 	dat["payload"] = pay
 
 	new, err := json.Marshal(dat)
@@ -121,12 +121,9 @@ func callSNOW(ms []byte) (string, error) {
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
 	}
 
-	out, err := json.Marshal(&ms)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snow payload: %v", err)
-	}
+	fmt.Printf("debug - string ms: %+v\n", string(ms))
 
-	req, err := c.NewRequest("", "POST", user, pass, out)
+	req, err := c.NewRequest("", "POST", user, pass, ms)
 	if err != nil {
 		return "", fmt.Errorf("could not make request: %v", err)
 	}
