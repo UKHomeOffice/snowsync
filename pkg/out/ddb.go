@@ -77,8 +77,6 @@ func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 
 func (d *Dynamo) writeItem(p *Incident) error {
 
-	fmt.Printf("debug - p into writer: %+v\n", p)
-
 	item, err := dynamodbattribute.MarshalMap(p)
 	if err != nil {
 		return fmt.Errorf("could not marshal db record: %s", err)
@@ -88,8 +86,6 @@ func (d *Dynamo) writeItem(p *Incident) error {
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
 		Item:      item,
 	}
-
-	fmt.Printf("debug - input in db: %+v\n", input)
 
 	_, err = d.DynamoDB.PutItem(input)
 	if err != nil {

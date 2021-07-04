@@ -10,12 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 )
 
-// App defines client methods
-type App interface {
+// DB defines client methods
+type DB interface {
 	GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error)
 	PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
 	Query(*dynamodb.QueryInput) (*dynamodb.QueryOutput, error)
-	UpdateItem(*dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error)
+	//UpdateItem(*dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error)
 }
 
 // Dynamo is a DB client
@@ -26,23 +26,6 @@ type Dynamo struct {
 // Processor can implement client methods
 type Processor struct {
 	db Dynamo
-}
-
-// Values make up the JSD payload
-type Values struct {
-	Comment     string      `json:"comment,omitempty"`
-	Description string      `json:"description,omitempty"`
-	Summary     string      `json:"summary,omitempty"`
-	Priority    *priority   `json:"priority,omitempty"`
-	Transition  *transition `json:"transition,omitempty"`
-}
-
-type priority struct {
-	Name string `json:"name,omitempty"`
-}
-
-type transition struct {
-	ID string `json:"id,omitempty"`
 }
 
 func newProcessor(d Dynamo) *Processor {
@@ -77,24 +60,21 @@ func getEnv() (string, string, string, error) {
 	return user, pass, base, nil
 }
 
-// Process applies workflow logic
-func process(in *Incident) (string, error) {
+func process(inc *Incident) (string, error) {
 
 	p := newProcessor(*newDBClient())
 
-	// check if internal id exists in DB,
-	// expect external identifier in return
-	partial, eid, err := p.db.checkPartial(in)
+	// check if internal id exists in DB, expect external identifier in return
+	partial, eid, err := p.db.checkPartial(inc)
 	if err != nil {
 		return "", fmt.Errorf("could not check partial item: %v", err)
 	}
 
-	//add identifier
-	in.ExtID = eid
+	//add external identifier
+	inc.ExtID = eid
 
-	// check if both internal id and comment id exist in DB,
-	// expect external identifier in return
-	exact, eid, err := p.db.checkExact(in)
+	// check if both internal id and comment id exist in DB, expect external identifier in return
+	exact, _, err := p.db.checkExact(inc)
 	if err != nil {
 		return "", fmt.Errorf("could not check exact item: %v", err)
 	}
@@ -103,14 +83,14 @@ func process(in *Incident) (string, error) {
 	case !exact && !partial:
 		fmt.Println("creating new ticket...")
 		// create ticket on JSD
-		eid, err := p.create(in)
+		eid, err := p.create(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not create ticket: %v", err)
 		}
 		// add returned external identifier
-		in.ExtID = eid
+		inc.ExtID = eid
 		// create a new DB record
-		err = p.db.writeItem(in)
+		err = p.db.writeItem(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not put DB item: %v", err)
 		}
@@ -118,18 +98,18 @@ func process(in *Incident) (string, error) {
 	case !exact && partial:
 		fmt.Println("updating ticket with new comments...")
 		// update ticket on SNOW
-		eid, err = p.update(in)
+		eid, err = p.update(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update ticket: %v", err)
 		}
 		// update DB with existing key
-		err := p.db.writeItem(in)
+		err := p.db.writeItem(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update DB item: %v", err)
 		}
 
-		// this is a workaround
-		_, err = p.progress(in)
+		// FIXME: this is a workaround
+		_, err = p.progress(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update ticket: %v", err)
 		}
@@ -137,13 +117,13 @@ func process(in *Incident) (string, error) {
 	case exact:
 		fmt.Println("no new comments, updating status only...")
 		// update DB with existing key
-		err := p.db.writeItem(in)
+		err := p.db.writeItem(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update DB item: %v", err)
 		}
 		// remove comments and update ticket
-		in.Comment = ""
-		eid, err = p.progress(in)
+		inc.Comment = ""
+		eid, err = p.progress(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update ticket: %v", err)
 		}

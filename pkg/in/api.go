@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/tidwall/gjson"
@@ -15,7 +14,7 @@ import (
 type Incident struct {
 	Comment        string `json:"comment,omitempty"`
 	CommentID      string `json:"comment_sysid,omitempty"`
-	Identifier     string
+	Identifier     string `json:"id,omitempty"`
 	IntComment     string `json:"internal_comment,omitempty"`
 	IntCommentID   string `json:"internal_comment_sysid,omitempty"`
 	Description    string `json:"description,omitempty"`
@@ -83,14 +82,19 @@ func parseIncident(input string) (*Incident, error) {
 	i.Status = gjson.Get(input, os.Getenv("STATUS_FIELD")).Str
 	i.Summary = gjson.Get(input, os.Getenv("SUMMARY_FIELD")).Str
 
+	// transform to fit target schema
+	i.Identifier = i.IntID
+
 	// initialise comment id if nil as it's being used as sort key
-	// treat both type of comment as customer visible comments
+	// treat both type of comment as customer visible comments on JSD
 	switch {
 	case i.CommentID == "" && i.IntCommentID == "":
 		i.CommentID = "0"
-	case i.IntCommentID != "":
+	case i.IntCommentID != "" && i.CommentID == "":
 		i.CommentID = i.IntCommentID
 		i.Comment = i.IntComment
+	case i.IntCommentID != "" && i.CommentID != "":
+		break
 	}
 
 	fmt.Printf("parsed incident: %v, status: %v, comment id: %v\n", i.IntID, i.Status, i.CommentID)
@@ -109,7 +113,7 @@ func Handle(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 
-	res, err := process(inc)
+	eid, err := process(inc)
 	if err != nil {
 		fmt.Println(err)
 		return events.APIGatewayProxyResponse{
@@ -118,10 +122,12 @@ func Handle(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		}, nil
 	}
 
+	// return JSD id back to SNOW
 	msg := struct {
 		ExtID string `json:"external_identifier,omitempty"`
 	}{
-		ExtID: strings.Trim(res, `", \`),
+		//	FIXME: ExtID: strings.Trim(eid, `", \`),
+		ExtID: eid,
 	}
 
 	bmsg, err := json.Marshal(msg)

@@ -13,10 +13,10 @@ func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
 
 	partial := &dynamodb.QueryInput{
 		TableName:              aws.String(os.Getenv("TABLE_NAME")),
-		KeyConditionExpression: aws.String("internal_identifier = :iid"),
+		KeyConditionExpression: aws.String("id = :id"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":iid": {
-				S: aws.String(p.IntID),
+			":id": {
+				S: aws.String(p.Identifier),
 			},
 		},
 	}
@@ -44,11 +44,12 @@ func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
 
 func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 
+	// look for internal_id and comment match
 	exact := &dynamodb.GetItemInput{
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
 		Key: map[string]*dynamodb.AttributeValue{
-			"internal_identifier": {
-				S: aws.String(p.IntID),
+			"id": {
+				S: aws.String(p.Identifier),
 			},
 			"comment_sysid": {
 				S: aws.String(p.CommentID),
@@ -56,7 +57,6 @@ func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 		},
 	}
 
-	// look for internal_id and comment match
 	resp, err := d.DynamoDB.GetItem(exact)
 	if err != nil {
 		return false, "", fmt.Errorf("could not get item: %v", err)
@@ -95,15 +95,15 @@ func (d *Dynamo) writeItem(p *Incident) error {
 	}
 
 	// add to other table as well
-	input = &dynamodb.PutItemInput{
-		Item:      item,
-		TableName: aws.String(os.Getenv("OUT_TABLE_NAME")),
-	}
+	// input = &dynamodb.PutItemInput{
+	// 	Item:      item,
+	// 	TableName: aws.String(os.Getenv("OUT_TABLE_NAME")),
+	// }
 
-	_, err = d.DynamoDB.PutItem(input)
-	if err != nil {
-		return fmt.Errorf("could not put to db: %v", err)
-	}
+	// _, err = d.DynamoDB.PutItem(input)
+	// if err != nil {
+	// 	return fmt.Errorf("could not put to db: %v", err)
+	// }
 
 	fmt.Printf("new item added with internal identifier: %v", p.IntID)
 	return nil

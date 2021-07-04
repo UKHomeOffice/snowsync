@@ -1,3 +1,5 @@
+// FIXME: this is a workaround
+
 package out
 
 import (

@@ -11,14 +11,21 @@ import (
 	"github.com/UKHomeOffice/snowsync/pkg/caller"
 )
 
-func transformUpdate(p *Incident) (map[string]interface{}, error) {
+// Values make up the JSD payload
+type Values struct {
+	Comment     string      `json:"comment,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Summary     string      `json:"summary,omitempty"`
+	Priority    *priority   `json:"priority,omitempty"`
+	Transition  *transition `json:"transition,omitempty"`
+}
 
-	dat := make(map[string]interface{})
+type priority struct {
+	Name string `json:"name,omitempty"`
+}
 
-	dat["external_identifier"] = p.ExtID
-	dat["body"] = fmt.Sprintf("Comment added on ServiceNow (%v): %v", p.CommentID, p.Comment)
-
-	return dat, nil
+type transition struct {
+	ID string `json:"id,omitempty"`
 }
 
 func transformCreate(p *Incident) (map[string]interface{}, error) {
@@ -44,66 +51,6 @@ func transformCreate(p *Incident) (map[string]interface{}, error) {
 
 }
 
-func updateIncident(b []byte) (string, error) {
-
-	user, pass, base, err := getEnv()
-	if err != nil {
-		return "", fmt.Errorf("environment error: %v", err)
-	}
-
-	surl, err := url.Parse(base)
-	if err != nil {
-		return "", fmt.Errorf("could not form JSD URL: %v", err)
-	}
-
-	// create client and request
-	c := &caller.Client{
-		BaseURL:    surl,
-		HTTPClient: &http.Client{Timeout: 5 * time.Second},
-	}
-
-	// remove the need for this switcheroo
-	var dat map[string]interface{}
-	err = json.Unmarshal(b, &dat)
-	if err != nil {
-		return "", fmt.Errorf("could not decode payload to get external id: %v", err)
-	}
-
-	eid, ok := dat["external_identifier"].(string)
-	if ok {
-		delete(dat, "external_identifier")
-		path, err := url.Parse("/rest/api/2/issue/" + eid + "/comment")
-		if err != nil {
-			return "", fmt.Errorf("could not form JSD URL: %v", err)
-		}
-		out, err := json.Marshal(&dat)
-		if err != nil {
-			return "", fmt.Errorf("could marshal JSD payload: %v", err)
-		}
-
-		req, err := c.NewRequest(path.Path, "POST", user, pass, out)
-		if err != nil {
-			return "", fmt.Errorf("could not make request: %v", err)
-		}
-		// make HTTP request to JSD
-		res, err := c.Do(req)
-		if err != nil {
-			return "", fmt.Errorf("could not call JSD: %v", err)
-		}
-		defer res.Body.Close()
-
-		// read HTTP response
-		body, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return "", fmt.Errorf("could not read JSD response body %v", err)
-		}
-
-		fmt.Printf("sent request, JSD replied with: %v", string(body))
-		return eid, nil
-	}
-	return "", fmt.Errorf("no identifier in payload")
-}
-
 func createIncident(b []byte) (string, error) {
 
 	user, pass, base, err := getEnv()
@@ -122,7 +69,8 @@ func createIncident(b []byte) (string, error) {
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
 	}
 
-	req, err := c.NewRequest("/rest/servicedeskapi/request/", "POST", user, pass, b)
+	//FIXME: temp URL
+	req, err := c.NewRequest("/tabf69k/rest/servicedeskapi/request/", "POST", user, pass, b)
 	if err != nil {
 		return "", fmt.Errorf("could not make request: %v", err)
 	}
@@ -179,6 +127,97 @@ func (p *Processor) create(in *Incident) (string, error) {
 	return out, nil
 }
 
+func transformUpdate(p *Incident) (map[string]interface{}, error) {
+
+	dat := make(map[string]interface{})
+
+	dat["external_identifier"] = p.ExtID
+	dat["body"] = fmt.Sprintf("Comment added on ServiceNow (%v): %v", p.CommentID, p.Comment)
+
+	return dat, nil
+}
+
+func updateIncident(b []byte) (string, error) {
+
+	user, pass, base, err := getEnv()
+	if err != nil {
+		return "", fmt.Errorf("environment error: %v", err)
+	}
+
+	surl, err := url.Parse(base)
+	if err != nil {
+		return "", fmt.Errorf("could not form JSD URL: %v", err)
+	}
+
+	// create client and request
+	c := &caller.Client{
+		BaseURL:    surl,
+		HTTPClient: &http.Client{Timeout: 5 * time.Second},
+	}
+
+	// remove the need for this switcheroo
+	var dat map[string]interface{}
+	err = json.Unmarshal(b, &dat)
+	if err != nil {
+		return "", fmt.Errorf("could not decode payload to get external id: %v", err)
+	}
+
+	eid, ok := dat["external_identifier"].(string)
+	if ok {
+		delete(dat, "external_identifier")
+		//FIXME: temp URL
+		path, err := url.Parse("/tabf69k/rest/api/2/issue/" + eid + "/comment")
+		if err != nil {
+			return "", fmt.Errorf("could not form JSD URL: %v", err)
+		}
+		out, err := json.Marshal(&dat)
+		if err != nil {
+			return "", fmt.Errorf("could marshal JSD payload: %v", err)
+		}
+
+		req, err := c.NewRequest(path.Path, "POST", user, pass, out)
+		if err != nil {
+			return "", fmt.Errorf("could not make request: %v", err)
+		}
+		// make HTTP request to JSD
+		res, err := c.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("could not call JSD: %v", err)
+		}
+		defer res.Body.Close()
+
+		// read HTTP response
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return "", fmt.Errorf("could not read JSD response body %v", err)
+		}
+
+		fmt.Printf("sent request, JSD replied with: %v", string(body))
+		return eid, nil
+	}
+	return "", fmt.Errorf("no identifier in payload")
+}
+
+func (p *Processor) update(pay *Incident) (string, error) {
+
+	v, err := transformUpdate(pay)
+	if err != nil {
+		return "", fmt.Errorf("could not transform creator payload: %v", err)
+	}
+
+	upd, err := json.Marshal(v)
+	if err != nil {
+		return "", fmt.Errorf("could not marshal updater payload: %v", err)
+	}
+
+	out, err := updateIncident(upd)
+	if err != nil {
+		return "", fmt.Errorf("could not invoke a create call: %v", err)
+	}
+
+	return out, nil
+}
+
 func (p *Processor) progress(pay *Incident) (string, error) {
 
 	user, pass, base, err := getEnv()
@@ -218,7 +257,8 @@ func (p *Processor) progress(pay *Incident) (string, error) {
 		Transition: &transition{ID: t},
 	}
 
-	path, err := url.Parse("/rest/api/2/issue/" + pay.ExtID + "/transitions")
+	//FIXME: temp URL
+	path, err := url.Parse("/tabf69k/rest/api/2/issue/" + pay.ExtID + "/transitions")
 	if err != nil {
 		return "", fmt.Errorf("could not form JSD URL: %v", err)
 	}
@@ -238,24 +278,4 @@ func (p *Processor) progress(pay *Incident) (string, error) {
 	defer res.Body.Close()
 
 	return pay.ExtID, nil
-}
-
-func (p *Processor) update(pay *Incident) (string, error) {
-
-	v, err := transformUpdate(pay)
-	if err != nil {
-		return "", fmt.Errorf("could not transform creator payload: %v", err)
-	}
-
-	upd, err := json.Marshal(v)
-	if err != nil {
-		return "", fmt.Errorf("could not marshal updater payload: %v", err)
-	}
-
-	out, err := updateIncident(upd)
-	if err != nil {
-		return "", fmt.Errorf("could not invoke a create call: %v", err)
-	}
-
-	return out, nil
 }

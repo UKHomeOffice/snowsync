@@ -66,21 +66,21 @@ func parseIncident(input string) (*Incident, error) {
 	i.Comment = gjson.Get(input, os.Getenv("COMMENT_FIELD")).Str
 	i.CommentID = gjson.Get(input, os.Getenv("COMMENT_ID_FIELD")).Str
 	i.Description = gjson.Get(input, os.Getenv("DESCRIPTION_FIELD")).Str
-	i.Identifier = gjson.Get(input, os.Getenv("ISSUE_ID_FIELD")).Str
+	i.ExtID = gjson.Get(input, os.Getenv("ISSUE_ID_FIELD")).Str
 	i.Priority = gjson.Get(input, os.Getenv("PRIORITY_FIELD")).Str
 	i.Status = gjson.Get(input, os.Getenv("STATUS_FIELD")).Str
 	i.Summary = gjson.Get(input, os.Getenv("SUMMARY_FIELD")).Str
 
+	// transform to fit target schema
 	commentAuthor := gjson.Get(input, os.Getenv("COMMENT_AUTHOR_FIELD")).Str
 	commentBody := gjson.Get(input, os.Getenv("COMMENT_BODY_FIELD")).Str
-	i.Comment = fmt.Sprintf("%v %v %v", commentAuthor, i.CommentID, commentBody)
 
-	// make required modifications
+	i.Comment = fmt.Sprintf("%v %v %v", commentAuthor, i.CommentID, commentBody)
 	i.Service = "AWS ACP"
-	i.ExtID = i.Identifier
+	i.Identifier = i.ExtID
 
 	if commentAuthor == "ServiceNow" {
-		fmt.Printf("ignoring comment left by ServiceNow")
+		fmt.Printf("ignoring comment left by ServiceNow service account\n")
 		return nil, nil
 	}
 

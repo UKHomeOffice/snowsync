@@ -121,8 +121,6 @@ func callSNOW(ms []byte) (string, error) {
 		HTTPClient: &http.Client{Timeout: 5 * time.Second},
 	}
 
-	fmt.Printf("debug - string ms: %+v\n", string(ms))
-
 	req, err := c.NewRequest("", "POST", user, pass, ms)
 	if err != nil {
 		return "", fmt.Errorf("could not make request: %v", err)
