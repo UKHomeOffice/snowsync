@@ -15,7 +15,6 @@ type DB interface {
 	GetItem(*dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error)
 	PutItem(*dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
 	Query(*dynamodb.QueryInput) (*dynamodb.QueryOutput, error)
-	//UpdateItem(*dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error)
 }
 
 // Dynamo is a DB client

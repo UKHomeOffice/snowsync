@@ -42,6 +42,7 @@ func transformCreate(p *Incident) (map[string]interface{}, error) {
 	v := Values{
 		Priority: &pri,
 		Summary:  p.Summary,
+		// FIXME: don't append initial comment to description
 		Description: fmt.Sprintf("Incident %v raised on ServiceNow by %v with priority %v.\n Description: %v.\n Initial comment (%v %v): %v %v",
 			p.IntID, p.Reporter, p.Priority, p.Description, p.CommentID, p.IntCommentID, p.Comment, p.IntComment),
 	}
@@ -88,7 +89,8 @@ func createIncident(b []byte) (string, error) {
 		return "", fmt.Errorf("could not read JSD response body %v", err)
 	}
 
-	fmt.Printf("sent request, JSD replied with: %v", string(body))
+	// FIXME
+	//fmt.Printf("sent request, JSD replied with: %v", string(body))
 
 	// dynamically decode response and check for JSD assigned identifier
 	var dat map[string]interface{}
@@ -187,12 +189,13 @@ func updateIncident(b []byte) (string, error) {
 		defer res.Body.Close()
 
 		// read HTTP response
-		body, err := ioutil.ReadAll(res.Body)
+		_, err = ioutil.ReadAll(res.Body)
 		if err != nil {
 			return "", fmt.Errorf("could not read JSD response body %v", err)
 		}
 
-		fmt.Printf("sent request, JSD replied with: %v", string(body))
+		// FIXME
+		//fmt.Printf("sent request, JSD replied with: %v", string(body))
 		return eid, nil
 	}
 	return "", fmt.Errorf("no identifier in payload")
@@ -240,17 +243,17 @@ func (p *Processor) progress(pay *Incident) (string, error) {
 	var t string
 	switch pay.Status {
 	case "":
-		fmt.Printf("ignoring blank status %v", pay.Status)
+		fmt.Printf("\nignoring blank status %v\n", pay.Status)
 		return pay.ExtID, nil
 	case "1":
-		fmt.Printf("ignoring status %v", pay.Status)
+		fmt.Printf("\nignoring status %v\n", pay.Status)
 		return pay.ExtID, nil
 	case "10100":
 		t = "11"
 	case "3":
 		t = "71"
 	default:
-		return "", fmt.Errorf("unexpected ticket status: %v", pay.Status)
+		return "", fmt.Errorf("\nunexpected ticket status: %v", pay.Status)
 	}
 
 	v := Values{

@@ -34,7 +34,7 @@ func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
 			return false, "", fmt.Errorf("could not unmarshal item: %v", err)
 		}
 		if pld.ExtID != "" {
-			fmt.Printf("partial match found for %v", pld.ExtID)
+			fmt.Printf("\npartial match found for %v\n", pld.ExtID)
 			return true, pld.ExtID, nil
 		}
 		return false, "", fmt.Errorf("partial entry has no external identifier")
@@ -69,7 +69,7 @@ func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 			return false, "", fmt.Errorf("could not unmarshal item: %v", err)
 		}
 		if pld.ExtID != "" {
-			fmt.Printf("exact match found for %v with comment id %v", pld.ExtID, pld.CommentID)
+			fmt.Printf("\nexact match found for %v with comment id %v\n", pld.ExtID, pld.CommentID)
 			return true, pld.ExtID, nil
 		}
 		return false, "", fmt.Errorf("exact entry has no external identifier")
@@ -94,17 +94,6 @@ func (d *Dynamo) writeItem(p *Incident) error {
 		return fmt.Errorf("could not put to db: %v", err)
 	}
 
-	// add to other table as well
-	// input = &dynamodb.PutItemInput{
-	// 	Item:      item,
-	// 	TableName: aws.String(os.Getenv("OUT_TABLE_NAME")),
-	// }
-
-	// _, err = d.DynamoDB.PutItem(input)
-	// if err != nil {
-	// 	return fmt.Errorf("could not put to db: %v", err)
-	// }
-
-	fmt.Printf("new item added with internal identifier: %v", p.IntID)
+	fmt.Printf("\nnew item added with internal identifier: %v\n", p.IntID)
 	return nil
 }

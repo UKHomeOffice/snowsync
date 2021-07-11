@@ -1,16 +1,16 @@
 package main
 
 import (
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/aws/aws-lambda-go/lambda"
+	"log"
+	"net/http"
 
 	"github.com/UKHomeOffice/snowsync/pkg/in"
+	"github.com/apex/gateway"
 )
 
-func handler(req *events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return in.Handle(req)
-}
-
 func main() {
-	lambda.Start(handler)
+
+	http.HandleFunc("/v2/in", in.HandleNew)
+	http.HandleFunc("/v2/add", in.HandleAdd)
+	log.Fatal(gateway.ListenAndServe("", nil))
 }

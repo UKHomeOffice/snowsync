@@ -3,6 +3,7 @@ module github.com/UKHomeOffice/snowsync
 go 1.15
 
 require (
+	github.com/apex/gateway v1.1.2
 	github.com/aws/aws-lambda-go v1.19.1
 	github.com/aws/aws-sdk-go v1.35.9
 	github.com/kr/pretty v0.2.0 // indirect

@@ -1,12 +1,12 @@
 package in
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/tidwall/gjson"
 )
 
@@ -102,24 +102,28 @@ func parseIncident(input string) (*Incident, error) {
 	return i, nil
 }
 
-// Handle deals with the incoming request
-func Handle(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+// HandleNew deals with an incoming request
+func HandleNew(w http.ResponseWriter, r *http.Request) {
 
-	inc, err := parseIncident(request.Body)
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusBadRequest,
-			Body:       err.Error(),
-		}, nil
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	input := buf.String()
+
+	inc, err := parseIncident(input)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	eid, err := process(inc)
 	if err != nil {
 		fmt.Println(err)
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       err.Error(),
-		}, nil
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	// return JSD id back to SNOW
@@ -132,14 +136,55 @@ func Handle(request *events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 
 	bmsg, err := json.Marshal(msg)
 	if err != nil {
-		return events.APIGatewayProxyResponse{
-			StatusCode: http.StatusInternalServerError,
-			Body:       err.Error(),
-		}, nil
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
-	return events.APIGatewayProxyResponse{
-		StatusCode: http.StatusOK,
-		Body:       string(bmsg),
-	}, nil
+	w.Write(bmsg)
+	w.WriteHeader(http.StatusOK)
+
+}
+
+// HandleAdd deals with an incoming update
+func HandleAdd(w http.ResponseWriter, r *http.Request) {
+
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	input := buf.String()
+
+	inc, err := parseIncident(input)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// we want to look up with JSD reference here
+	inc.Identifier = inc.ExtID
+
+	eid, err := process(inc)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// return JSD id back to SNOW
+	msg := struct {
+		ExtID string `json:"external_identifier,omitempty"`
+	}{
+		ExtID: eid,
+	}
+
+	bmsg, err := json.Marshal(msg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(bmsg)
+	w.WriteHeader(http.StatusOK)
 }
