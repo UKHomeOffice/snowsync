@@ -12,15 +12,16 @@ import (
 	"github.com/UKHomeOffice/snowsync/pkg/caller"
 )
 
-func create(pay *Incident) (string, error) {
+func create(inc *Incident) (string, error) {
 
 	// construct payload with SNOW required headers
 	dat := make(map[string]interface{})
 	dat["messageid"] = "HO_SIAM_IN_REST_INC_POST_JSON_ACP_Incident_Create"
-	dat["external_identifier"] = pay.Identifier
-	// avoid repeating external identifier in payload
+	dat["external_identifier"] = inc.Identifier
+
+	//FIXME avoid repeating external identifier in payload
 	//pay.Identifier = ""
-	dat["payload"] = pay
+	dat["payload"] = inc
 
 	new, err := json.Marshal(dat)
 	if err != nil {
@@ -40,15 +41,15 @@ func create(pay *Incident) (string, error) {
 	return "", fmt.Errorf("no identifier in SNOW response")
 }
 
-func update(pay *Incident) error {
+func update(inc *Incident) error {
 
 	// construct payload with SNOW required headers
 	dat := make(map[string]interface{})
 	dat["messageid"] = "HO_SIAM_IN_REST_INC_UPDATE_JSON_ACP_Incident_Update"
-	dat["internal_identifier"] = pay.IntID
+	dat["internal_identifier"] = inc.IntID
 	// avoid repeating internal identifier in payload
-	pay.IntID = ""
-	dat["payload"] = pay
+	inc.IntID = ""
+	dat["payload"] = inc
 
 	update, err := json.Marshal(dat)
 	if err != nil {
@@ -62,22 +63,22 @@ func update(pay *Incident) error {
 	return nil
 }
 
-func progress(pay *Incident) error {
+func progress(inc *Incident) error {
 
 	// construct payload with SNOW required headers
 	dat := make(map[string]interface{})
 	dat["messageid"] = "HO_SIAM_IN_REST_INC_UPDATE_JSON_ACP_Incident_Update"
-	dat["internal_identifier"] = pay.IntID
+	dat["internal_identifier"] = inc.IntID
 	// remove irrelevant keys from payload
-	pay.IntID = ""
-	pay.Comment = ""
-	pay.Priority = ""
+	inc.IntID = ""
+	inc.Comment = ""
+	inc.Priority = ""
 
-	if pay.Status == "6" {
-		pay.Resolution = "done"
+	if inc.Status == "6" {
+		inc.Resolution = "done"
 	}
 
-	dat["payload"] = pay
+	dat["payload"] = inc
 
 	progress, err := json.Marshal(dat)
 	if err != nil {

@@ -108,7 +108,7 @@ func process(inc *Incident) (string, error) {
 		}
 
 		// FIXME: this is a workaround
-		_, err = p.progress(inc)
+		_, err = p.setStatus(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update ticket: %v", err)
 		}
@@ -122,7 +122,7 @@ func process(inc *Incident) (string, error) {
 		}
 		// remove comments and update ticket
 		inc.Comment = ""
-		eid, err = p.progress(inc)
+		eid, err = p.setStatus(inc)
 		if err != nil {
 			return "", fmt.Errorf("could not update ticket: %v", err)
 		}

@@ -9,14 +9,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
-func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
+func (d *Dynamo) checkPartial(inc *Incident) (bool, string, error) {
 
 	partial := &dynamodb.QueryInput{
 		TableName:              aws.String(os.Getenv("TABLE_NAME")),
 		KeyConditionExpression: aws.String("id = :id"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":id": {
-				S: aws.String(p.Identifier),
+				S: aws.String(inc.Identifier),
 			},
 		},
 	}
@@ -42,17 +42,17 @@ func (d *Dynamo) checkPartial(p *Incident) (bool, string, error) {
 	return false, "", nil
 }
 
-func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
+func (d *Dynamo) checkExact(inc *Incident) (bool, string, error) {
 
 	// look for internal_id and comment match
 	exact := &dynamodb.GetItemInput{
 		TableName: aws.String(os.Getenv("TABLE_NAME")),
 		Key: map[string]*dynamodb.AttributeValue{
 			"id": {
-				S: aws.String(p.Identifier),
+				S: aws.String(inc.Identifier),
 			},
 			"comment_sysid": {
-				S: aws.String(p.CommentID),
+				S: aws.String(inc.CommentID),
 			},
 		},
 	}
@@ -77,9 +77,9 @@ func (d *Dynamo) checkExact(p *Incident) (bool, string, error) {
 	return false, "", nil
 }
 
-func (d *Dynamo) writeItem(p *Incident) error {
+func (d *Dynamo) writeItem(inc *Incident) error {
 
-	item, err := dynamodbattribute.MarshalMap(p)
+	item, err := dynamodbattribute.MarshalMap(inc)
 	if err != nil {
 		return fmt.Errorf("could not marshal db record: %s", err)
 	}
@@ -94,6 +94,6 @@ func (d *Dynamo) writeItem(p *Incident) error {
 		return fmt.Errorf("could not put to db: %v", err)
 	}
 
-	fmt.Printf("\nnew item added with internal identifier: %v\n", p.IntID)
+	fmt.Printf("\nnew item added with internal identifier: %v\n", inc.IntID)
 	return nil
 }
